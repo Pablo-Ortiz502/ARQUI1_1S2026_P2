@@ -31,6 +31,7 @@ msg_trans_len   = . - msg_trans
 .global ingresar_matriz
 .global imprimir_matriz
 .global reservar_matriz
+.global liberar_matriz
 .global matriz_identidad
 .global matriz_transpuesta
 
@@ -39,7 +40,7 @@ msg_trans_len   = . - msg_trans
 .extern print_entero
 
 
-// reserva memoria para una matriz
+// reserva memoria
 // x0 = filas, x1 = cols
 // retorna x0 = puntero
 reservar_matriz:
@@ -50,8 +51,8 @@ reservar_matriz:
 
     mov     x0, #0
     mov     x1, x2
-    mov     x2, #0x3
-    mov     x3, #0x22
+    mov     x2, #0x3              // PROT_READ | PROT_WRITE
+    mov     x3, #0x22             // MAP_PRIVATE | MAP_ANON
     mov     x4, #-1
     mov     x5, #0
     mov     x8, #222
@@ -61,7 +62,21 @@ reservar_matriz:
     ret
 
 
-// pide valores y los guarda en matriz
+// libera memoria
+// x0 = puntero, x1 = filas, x2 = cols
+liberar_matriz:
+    stp     x29, x30, [sp, #-16]!
+
+    mul     x1, x1, x2
+    lsl     x1, x1, #3            // size = filas*cols*8
+    mov     x8, #215              // munmap
+    svc     #0
+
+    ldp     x29, x30, [sp], #16
+    ret
+
+
+// pide valores y los guarda
 // x0 = puntero, x1 = filas, x2 = cols
 ingresar_matriz:
     stp     x29, x30, [sp, #-16]!
@@ -167,8 +182,8 @@ imp_fin:
     ret
 
 
-// transforma a identidad
-// x0 = puntero, x1 = filas, x2 = cols
+// genera identidad sin tocar original
+// x0 = puntero A, x1 = filas, x2 = cols
 matriz_identidad:
     stp     x29, x30, [sp, #-16]!
     stp     x19, x20, [sp, #-16]!
@@ -179,9 +194,8 @@ matriz_identidad:
     cmp     x1, x2
     bne     id_error
 
-    mov     x23, x0
-    mov     x20, x1
-    mov     x22, x2
+    mov     x23, x0               // A
+    mov     x20, x1               // n
 
     // muestra original
     ldr     x1, =msg_orig
@@ -189,10 +203,16 @@ matriz_identidad:
     bl      print
     mov     x0, x23
     mov     x1, x20
-    mov     x2, x22
+    mov     x2, x20
     bl      imprimir_matriz
 
-    // recorre y asigna 1 en diagonal, 0 fuera
+    // reserva B de nxn
+    mov     x0, x20
+    mov     x1, x20
+    bl      reservar_matriz
+    mov     x24, x0               // B
+
+    // llena B: 1 en diagonal, 0 fuera
     mov     x19, #0
 id_fila:
     cmp     x19, x20
@@ -200,10 +220,10 @@ id_fila:
 
     mov     x21, #0
 id_col:
-    cmp     x21, x22
+    cmp     x21, x20
     bge     id_sig
 
-    mul     x6, x19, x22
+    mul     x6, x19, x20
     add     x6, x6, x21
     lsl     x6, x6, #3
 
@@ -214,7 +234,7 @@ id_col:
 id_uno:
     mov     x0, #1
 id_guardar:
-    str     x0, [x23, x6]
+    str     x0, [x24, x6]
 
     add     x21, x21, #1
     b       id_col
@@ -226,10 +246,16 @@ id_fin:
     ldr     x1, =msg_ident
     mov     x2, #msg_ident_len
     bl      print
-    mov     x0, x23
+    mov     x0, x24
     mov     x1, x20
-    mov     x2, x22
+    mov     x2, x20
     bl      imprimir_matriz
+
+    // libera B
+    mov     x0, x24
+    mov     x1, x20
+    mov     x2, x20
+    bl      liberar_matriz
     b       id_ret
 
 id_error:
@@ -245,9 +271,8 @@ id_ret:
     ret
 
 
-// calcula transpuesta
+// calcula transpuesta sin tocar original
 // x0 = puntero A, x1 = filas, x2 = cols
-// retorna x0 = puntero B (cols x filas)
 matriz_transpuesta:
     stp     x29, x30, [sp, #-16]!
     stp     x19, x20, [sp, #-16]!
@@ -311,7 +336,12 @@ tr_fin:
     mov     x2, x20
     bl      imprimir_matriz
 
-    mov     x0, x24               // retorna puntero B
+    // libera B
+    mov     x0, x24
+    mov     x1, x22
+    mov     x2, x20
+    bl      liberar_matriz
+
     ldp     x23, x24, [sp], #16
     ldp     x21, x22, [sp], #16
     ldp     x19, x20, [sp], #16
