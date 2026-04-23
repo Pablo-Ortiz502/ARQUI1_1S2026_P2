@@ -8,7 +8,7 @@ msg_cols_len    = . - msg_cols
 msg_err_dim:      .ascii  "Error: dimensiones deben ser mayores a 0\n"
 msg_err_dim_len = . - msg_err_dim
 
-msg_menu:         .ascii  "\n=== MENU ===\n1. Matriz identidad\n2. Matriz transpuesta\n3. Salir\nOpcion: "
+msg_menu:         .ascii  "\n=== MENU ===\n1. Matriz identidad\n2. Matriz transpuesta\n3. Aritmetica\n4. Salir\nOpcion: "
 msg_menu_len    = . - msg_menu
 
 msg_matriz:       .ascii  "\nMatriz ingresada:\n"
@@ -37,6 +37,7 @@ matriz_ptr:     .skip 8
 .extern reservar_matriz
 .extern matriz_identidad
 .extern matriz_transpuesta
+.extern submenu_aritmetica
 
 
 // main
@@ -70,7 +71,7 @@ _start:
     // reserva memoria
     mov     x0, x19
     mov     x1, x20
-    bl      reservar_matriz       // x0 = puntero
+    bl      reservar_matriz
     ldr     x1, =matriz_ptr
     str     x0, [x1]
 
@@ -89,18 +90,19 @@ _start:
     mov     x2, x20
     bl      imprimir_matriz
 
-// bucle de menu
 menu_loop:
     ldr     x1, =msg_menu
     mov     x2, #msg_menu_len
     bl      print
-    bl      leer_entero           // x0 = opcion
+    bl      leer_entero
 
     cmp     x0, #1
     beq     op_identidad
     cmp     x0, #2
     beq     op_transpuesta
     cmp     x0, #3
+    beq     op_aritmetica
+    cmp     x0, #4
     beq     fin_programa
 
     ldr     x1, =msg_opc_inv
@@ -126,6 +128,16 @@ op_transpuesta:
     ldr     x2, =columnas
     ldr     x2, [x2]
     bl      matriz_transpuesta
+    b       menu_loop
+
+op_aritmetica:
+    ldr     x1, =matriz_ptr
+    ldr     x0, [x1]
+    ldr     x1, =filas
+    ldr     x1, [x1]
+    ldr     x2, =columnas
+    ldr     x2, [x2]
+    bl      submenu_aritmetica
     b       menu_loop
 
 // salida ok
