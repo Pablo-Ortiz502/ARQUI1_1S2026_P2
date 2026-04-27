@@ -1,5 +1,5 @@
 .data
-msg_sub_menu:     .ascii  "\n--- ARITMETICA ---\n1. Suma\n2. Multiplicacion punto\n3. Multiplicacion cruz\n4. Volver\nOpcion: "
+msg_sub_menu:     .ascii  "\n--- ARITMETICA ---\n1. Suma\n2. Resta\n3. Multiplicacion punto\n4. Multiplicacion cruz\n5. Volver\nOpcion: "
 msg_sub_menu_len = . - msg_sub_menu
 
 msg_pide_b:       .ascii  "\nIngreso de matriz B\n"
@@ -107,10 +107,12 @@ sub_loop:
     cmp     x0, #1
     beq     op_suma
     cmp     x0, #2
-    beq     op_mul_punto
+    beq     op_resta
     cmp     x0, #3
-    beq     op_mul_cruz
+    beq     op_mul_punto
     cmp     x0, #4
+    beq     op_mul_cruz
+    cmp     x0, #5
     beq     sub_fin
 
     // opcion invalida
@@ -121,6 +123,10 @@ sub_loop:
 
 op_suma:
     bl      suma
+    b       sub_loop
+
+op_resta:
+    bl      resta
     b       sub_loop
 
 op_mul_punto:
@@ -144,7 +150,7 @@ sub_fin:
     ldp     x21, x22, [sp], #16
     ldp     x19, x20, [sp], #16
     ldp     x29, x30, [sp], #16
-    ret
+    ret                           // no retorna valor
 
 
 // suma A + B
@@ -246,7 +252,109 @@ s_ret:
     ldp     x25, x26, [sp], #16
     ldp     x23, x24, [sp], #16
     ldp     x29, x30, [sp], #16
-    ret
+    ret                           // no retorna valor
+
+
+// resta A - B
+// usa A (x19, x20, x21) y B globales
+resta:
+    stp     x29, x30, [sp, #-16]!
+    stp     x23, x24, [sp, #-16]!
+    stp     x25, x26, [sp, #-16]!
+    stp     x27, x28, [sp, #-16]!
+
+    // valida mismas dimensiones
+    ldr     x1, =filas_b
+    ldr     x1, [x1]
+    cmp     x20, x1
+    bne     r_error
+    ldr     x1, =cols_b
+    ldr     x1, [x1]
+    cmp     x21, x1
+    bne     r_error
+
+    // muestra A
+    ldr     x1, =msg_mat_a
+    mov     x2, #msg_mat_a_len
+    bl      print
+    mov     x0, x19
+    mov     x1, x20
+    mov     x2, x21
+    bl      imprimir_matriz
+
+    // muestra B
+    ldr     x1, =msg_mat_b
+    mov     x2, #msg_mat_b_len
+    bl      print
+    ldr     x1, =mat_b_ptr
+    ldr     x0, [x1]
+    mov     x1, x20
+    mov     x2, x21
+    bl      imprimir_matriz
+
+    // reserva C del mismo tamano que A
+    mov     x0, x20
+    mov     x1, x21
+    bl      reservar_matriz
+    mov     x23, x0               // C
+
+    ldr     x1, =mat_b_ptr
+    ldr     x24, [x1]             // B
+
+    // recorre i, j y resta celda a celda
+    mov     x25, #0               // i
+r_fila:
+    cmp     x25, x20
+    bge     r_imp
+
+    mov     x26, #0               // j
+r_col:
+    cmp     x26, x21
+    bge     r_sig
+
+    // offset = (i*cols + j) * 8
+    mul     x6, x25, x21
+    add     x6, x6, x26
+    lsl     x6, x6, #3
+    ldr     x27, [x19, x6]        // A[i][j]
+    ldr     x28, [x24, x6]        // B[i][j]
+    sub     x27, x27, x28         // resta
+    str     x27, [x23, x6]        // C[i][j]
+
+    add     x26, x26, #1
+    b       r_col
+r_sig:
+    add     x25, x25, #1
+    b       r_fila
+
+r_imp:
+    // muestra C
+    ldr     x1, =msg_result
+    mov     x2, #msg_result_len
+    bl      print
+    mov     x0, x23
+    mov     x1, x20
+    mov     x2, x21
+    bl      imprimir_matriz
+
+    // libera C
+    mov     x0, x23
+    mov     x1, x20
+    mov     x2, x21
+    bl      liberar_matriz
+    b       r_ret
+
+r_error:
+    ldr     x1, =msg_err_dim_ig
+    mov     x2, #msg_err_dim_ig_len
+    bl      print
+
+r_ret:
+    ldp     x27, x28, [sp], #16
+    ldp     x25, x26, [sp], #16
+    ldp     x23, x24, [sp], #16
+    ldp     x29, x30, [sp], #16
+    ret                           // no retorna valor
 
 
 // multiplicacion punto (Hadamard)
@@ -347,7 +455,7 @@ mp_ret:
     ldp     x25, x26, [sp], #16
     ldp     x23, x24, [sp], #16
     ldp     x29, x30, [sp], #16
-    ret
+    ret                           // no retorna valor
 
 
 // multiplicacion cruz A * B
@@ -396,7 +504,7 @@ mul_cruz:
     ldr     x1, =mat_b_ptr
     ldr     x24, [x1]             // B
 
-    // triple bucle: i = fila de A, j = col de B, k = indice comun
+    // triple bucle: i = fila A, j = col B, k = indice comun
     mov     x25, #0               // i
 mc_fila:
     cmp     x25, x20
@@ -479,4 +587,4 @@ mc_ret:
     ldp     x25, x26, [sp], #16
     ldp     x23, x24, [sp], #16
     ldp     x29, x30, [sp], #16
-    ret
+    ret                           // no retorna valor
