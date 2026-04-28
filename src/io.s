@@ -1,9 +1,13 @@
 .data
+msg_signo:      .ascii  "-"
+
+
 .bss
 .align 3
 input_buf:      .skip 32          // buffer entrada
 .align 3
 out_buf:        .skip 32          // buffer salida
+
 
 .text
 .global print
@@ -19,7 +23,7 @@ print:
     ret
 
 
-// lee entero
+// lee entero con signo
 // retorna x0
 leer_entero:
     stp     x29, x30, [sp, #-16]!
@@ -30,12 +34,23 @@ leer_entero:
     mov     x8, #63
     svc     #0
 
-    mov     x2, x0
+    mov     x2, x0                // bytes leidos
     ldr     x1, =input_buf
 
     mov     x0, #0                // acumulador
     mov     x3, #0                // indice
     mov     x5, #10
+    mov     x6, #0                // bandera negativo
+
+    // chequea signo
+    cmp     x2, #0
+    beq     atoi_fin
+    ldrb    w4, [x1, x3]
+    cmp     w4, #'-'
+    bne     atoi_loop
+    mov     x6, #1                // marca negativo
+    add     x3, x3, #1            // salta el '-'
+
 atoi_loop:
     cmp     x3, x2
     bge     atoi_fin
@@ -50,15 +65,33 @@ atoi_loop:
     add     x3, x3, #1
     b       atoi_loop
 atoi_fin:
+    // si es negativo: niega
+    cmp     x6, #1
+    bne     atoi_ret
+    neg     x0, x0
+atoi_ret:
     ldp     x29, x30, [sp], #16
     ret                           // x0 = valor
 
 
-// imprime entero
+// imprime entero con signo
 // x0 = valor
 print_entero:
     stp     x29, x30, [sp, #-16]!
 
+    // si es negativo: imprime '-' y niega
+    cmp     x0, #0
+    bge     itoa_pos
+    stp     x0, xzr, [sp, #-16]!  // guarda valor
+    ldr     x1, =msg_signo
+    mov     x2, #1
+    mov     x0, #1
+    mov     x8, #64
+    svc     #0
+    ldp     x0, xzr, [sp], #16    // recupera valor
+    neg     x0, x0                // valor absoluto
+
+itoa_pos:
     ldr     x1, =out_buf
     add     x1, x1, #31
     mov     x2, #0

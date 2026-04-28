@@ -1,5 +1,5 @@
 .data
-msg_sub_menu:     .ascii  "\n--- ARITMETICA ---\n1. Suma\n2. Resta\n3. Multiplicacion punto\n4. Multiplicacion cruz\n5. Volver\nOpcion: "
+msg_sub_menu:     .ascii  "\n--- ARITMETICA ---\n1. Suma\n2. Resta\n3. Multiplicacion punto\n4. Multiplicacion cruz\n5. Division\n6. Volver\nOpcion: "
 msg_sub_menu_len = . - msg_sub_menu
 
 msg_pide_b:       .ascii  "\nIngreso de matriz B\n"
@@ -25,6 +25,9 @@ msg_err_dim_ig_len = . - msg_err_dim_ig
 
 msg_err_dim_mul:  .ascii  "Error: columnas de A deben ser iguales a filas de B\n"
 msg_err_dim_mul_len = . - msg_err_dim_mul
+
+msg_div_pend:     .ascii  "Division pendiente (se implementa en Fase 4)\n"
+msg_div_pend_len = . - msg_div_pend
 
 msg_opc_inv:      .ascii  "Opcion invalida\n"
 msg_opc_inv_len = . - msg_opc_inv
@@ -113,6 +116,8 @@ sub_loop:
     cmp     x0, #4
     beq     op_mul_cruz
     cmp     x0, #5
+    beq     op_division
+    cmp     x0, #6
     beq     sub_fin
 
     // opcion invalida
@@ -135,6 +140,13 @@ op_mul_punto:
 
 op_mul_cruz:
     bl      mul_cruz
+    b       sub_loop
+
+op_division:
+    // stub: se implementa en Fase 4
+    ldr     x1, =msg_div_pend
+    mov     x2, #msg_div_pend_len
+    bl      print
     b       sub_loop
 
 sub_fin:
