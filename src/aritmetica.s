@@ -26,7 +26,7 @@ msg_err_dim_ig_len = . - msg_err_dim_ig
 msg_err_dim_mul:  .ascii  "Error: columnas de A deben ser iguales a filas de B\n"
 msg_err_dim_mul_len = . - msg_err_dim_mul
 
-msg_div_pend:     .ascii  "Division pendiente (se implementa en Fase 4)\n"
+msg_div_pend:     .ascii  "Division pendiente\n"
 msg_div_pend_len = . - msg_div_pend
 
 msg_opc_inv:      .ascii  "Opcion invalida\n"
@@ -148,6 +148,7 @@ op_division:
     mov     x2, #msg_div_pend_len
     bl      print
     b       sub_loop
+
 
 sub_fin:
     // libera B al salir del submenu
