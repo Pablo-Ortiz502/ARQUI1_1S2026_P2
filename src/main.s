@@ -8,7 +8,7 @@ msg_cols_len    = . - msg_cols
 msg_err_dim:      .ascii  "Error: dimensiones deben ser mayores a 0\n"
 msg_err_dim_len = . - msg_err_dim
 
-msg_menu:         .ascii  "\n=== MENU ===\n1. Matriz identidad\n2. Matriz transpuesta\n3. Aritmetica\n4. Metodo de Gauss\n5. Gauss-Jordan\n6. Salir\nOpcion: "
+msg_menu:         .ascii  "\n=== MENU ===\n1. Matriz identidad\n2. Matriz transpuesta\n3. Aritmetica\n4. Metodo de Gauss\n5. Gauss-Jordan\n6. Determinante\n7. Salir\nOpcion: "
 msg_menu_len    = . - msg_menu
 
 msg_matriz:       .ascii  "\nMatriz ingresada:\n"
@@ -108,6 +108,8 @@ menu_loop:
     cmp     x0, #5
     beq     op_jordan
     cmp     x0, #6
+    beq     op_det
+    cmp     x0, #7
 
     beq     fin_programa
     ldr     x1, =msg_opc_inv
@@ -153,7 +155,16 @@ op_jordan:
     ldr     x2, =columnas
     ldr     x2, [x2]
     bl      metodo_jordan
-    b       menu_loop    
+    b       menu_loop
+op_det:
+    ldr     x1, =matriz_ptr
+    ldr     x0, [x1]
+    ldr     x1, =filas
+    ldr     x1, [x1]
+    ldr     x2, =columnas
+    ldr     x2, [x2]
+    bl      determinante
+    b       menu_loop        
 
 op_aritmetica:
     ldr     x1, =matriz_ptr
