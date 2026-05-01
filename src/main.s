@@ -8,7 +8,7 @@ msg_cols_len    = . - msg_cols
 msg_err_dim:      .ascii  "Error: dimensiones deben ser mayores a 0\n"
 msg_err_dim_len = . - msg_err_dim
 
-msg_menu:         .ascii  "\n=== MENU ===\n1. Matriz identidad\n2. Matriz transpuesta\n3. Aritmetica\n4. Metodo de Gauss\n5. Gauss-Jordan\n6. Determinante\n7. Salir\nOpcion: "
+msg_menu:         .ascii  "\n=== MENU ===\n1. Matriz identidad\n2. Matriz transpuesta\n3. Aritmetica\n4. Metodo de Gauss\n5. Gauss-Jordan\n6. Determinante\n7. Matriz inversa\n8. Salir\nOpcion: "
 msg_menu_len    = . - msg_menu
 
 msg_matriz:       .ascii  "\nMatriz ingresada:\n"
@@ -39,6 +39,7 @@ matriz_ptr:     .skip 8
 .extern matriz_transpuesta
 .extern submenu_aritmetica
 .extern metodo_gauss
+.extern matriz_inversa 
 
 
 // main
@@ -110,6 +111,8 @@ menu_loop:
     cmp     x0, #6
     beq     op_det
     cmp     x0, #7
+    beq     op_inversa
+    cmp     x0, #8
 
     beq     fin_programa
     ldr     x1, =msg_opc_inv
@@ -164,7 +167,17 @@ op_det:
     ldr     x2, =columnas
     ldr     x2, [x2]
     bl      determinante
-    b       menu_loop        
+    b       menu_loop
+
+op_inversa:
+    ldr     x1, =matriz_ptr
+    ldr     x0, [x1]
+    ldr     x1, =filas
+    ldr     x1, [x1]
+    ldr     x2, =columnas
+    ldr     x2, [x2]
+    bl      matriz_inversa
+    b       menu_loop
 
 op_aritmetica:
     ldr     x1, =matriz_ptr
