@@ -26,8 +26,17 @@ msg_err_dim_ig_len = . - msg_err_dim_ig
 msg_err_dim_mul:  .ascii  "Error: columnas de A deben ser iguales a filas de B\n"
 msg_err_dim_mul_len = . - msg_err_dim_mul
 
-msg_div_pend:     .ascii  "Division pendiente\n"
-msg_div_pend_len = . - msg_div_pend
+msg_err_cuad_div: .ascii  "Error: B debe ser cuadrada para dividir\n"
+msg_err_cuad_div_len = . - msg_err_cuad_div
+
+msg_err_dim_div:  .ascii  "Error: columnas de A deben ser iguales a filas de B\n"
+msg_err_dim_div_len = . - msg_err_dim_div
+
+msg_no_inv_div:   .ascii  "Error: B no es invertible\n"
+msg_no_inv_div_len = . - msg_no_inv_div
+
+msg_b_inv:        .ascii  "\nInversa de B:\n"
+msg_b_inv_len   = . - msg_b_inv
 
 msg_opc_inv:      .ascii  "Opcion invalida\n"
 msg_opc_inv_len = . - msg_opc_inv
@@ -52,7 +61,7 @@ cols_b:         .skip 8
 .extern imprimir_matriz
 .extern reservar_matriz
 .extern liberar_matriz
-
+.extern calcular_inversa
 
 // submenu aritmetica
 // x0 = A, x1 = filas A, x2 = cols A
@@ -143,10 +152,7 @@ op_mul_cruz:
     b       sub_loop
 
 op_division:
-    // stub: se implementa en Fase 4
-    ldr     x1, =msg_div_pend
-    mov     x2, #msg_div_pend_len
-    bl      print
+    bl      division
     b       sub_loop
 
 
@@ -589,6 +595,173 @@ mc_imp:
     ldr     x2, [x2]
     bl      liberar_matriz
     b       mc_ret
+
+
+// division A / B = A * B^-1
+// usa A (x19, x20, x21) y B globales
+division:
+    stp     x29, x30, [sp, #-16]!
+    stp     x23, x24, [sp, #-16]!
+    stp     x25, x26, [sp, #-16]!
+    stp     x27, x28, [sp, #-16]!
+
+    // valida B cuadrada
+    ldr     x1, =filas_b
+    ldr     x1, [x1]
+    ldr     x2, =cols_b
+    ldr     x2, [x2]
+    cmp     x1, x2
+    bne     div_err_cuad
+
+    // valida cols A == filas B
+    cmp     x21, x1
+    bne     div_err_dim
+
+    // muestra A
+    ldr     x1, =msg_mat_a
+    mov     x2, #msg_mat_a_len
+    bl      print
+    mov     x0, x19
+    mov     x1, x20
+    mov     x2, x21
+    bl      imprimir_matriz
+
+    // muestra B
+    ldr     x1, =msg_mat_b
+    mov     x2, #msg_mat_b_len
+    bl      print
+    ldr     x1, =mat_b_ptr
+    ldr     x0, [x1]
+    ldr     x1, =filas_b
+    ldr     x1, [x1]
+    ldr     x2, =cols_b
+    ldr     x2, [x2]
+    bl      imprimir_matriz
+
+    // calcula B^-1
+    ldr     x1, =mat_b_ptr
+    ldr     x0, [x1]
+    ldr     x1, =filas_b
+    ldr     x1, [x1]
+    bl      calcular_inversa      // x0 = inversa o 0
+    mov     x23, x0
+
+    cmp     x23, #0
+    beq     div_no_inv
+
+    // muestra B^-1
+    ldr     x1, =msg_b_inv
+    mov     x2, #msg_b_inv_len
+    bl      print
+    mov     x0, x23
+    ldr     x1, =filas_b
+    ldr     x1, [x1]
+    mov     x2, x1
+    bl      imprimir_matriz
+
+    // multiplica A * B^-1, resultado n_a x n_b
+    // C[i][j] = suma A[i][k] * Binv[k][j]
+    ldr     x24, =filas_b
+    ldr     x24, [x24]            // n (dim de B)
+
+    // reserva C de filas A x n
+    mov     x0, x20
+    mov     x1, x24
+    bl      reservar_matriz
+    mov     x25, x0               // C
+
+    mov     x26, #0               // i
+div_fila:
+    cmp     x26, x20
+    bge     div_imp
+
+    mov     x27, #0               // j
+div_col:
+    cmp     x27, x24
+    bge     div_sig
+
+    mov     x28, #0               // k
+    mov     x9, #0                // acumulador
+div_k:
+    cmp     x28, x21
+    bge     div_guarda
+
+    // A[i][k]
+    mul     x6, x26, x21
+    add     x6, x6, x28
+    lsl     x6, x6, #3
+    ldr     x10, [x19, x6]
+
+    // Binv[k][j]
+    mul     x7, x28, x24
+    add     x7, x7, x27
+    lsl     x7, x7, #3
+    ldr     x11, [x23, x7]
+
+    mul     x10, x10, x11
+    add     x9, x9, x10
+
+    add     x28, x28, #1
+    b       div_k
+
+div_guarda:
+    mul     x6, x26, x24
+    add     x6, x6, x27
+    lsl     x6, x6, #3
+    str     x9, [x25, x6]
+
+    add     x27, x27, #1
+    b       div_col
+
+div_sig:
+    add     x26, x26, #1
+    b       div_fila
+
+div_imp:
+    // muestra C
+    ldr     x1, =msg_result
+    mov     x2, #msg_result_len
+    bl      print
+    mov     x0, x25
+    mov     x1, x20
+    mov     x2, x24
+    bl      imprimir_matriz
+
+    // libera C y B^-1
+    mov     x0, x25
+    mov     x1, x20
+    mov     x2, x24
+    bl      liberar_matriz
+    mov     x0, x23
+    mov     x1, x24
+    mov     x2, x24
+    bl      liberar_matriz
+    b       div_ret
+
+div_no_inv:
+    ldr     x1, =msg_no_inv_div
+    mov     x2, #msg_no_inv_div_len
+    bl      print
+    b       div_ret
+
+div_err_cuad:
+    ldr     x1, =msg_err_cuad_div
+    mov     x2, #msg_err_cuad_div_len
+    bl      print
+    b       div_ret
+
+div_err_dim:
+    ldr     x1, =msg_err_dim_div
+    mov     x2, #msg_err_dim_div_len
+    bl      print
+
+div_ret:
+    ldp     x27, x28, [sp], #16
+    ldp     x25, x26, [sp], #16
+    ldp     x23, x24, [sp], #16
+    ldp     x29, x30, [sp], #16
+    ret                           // no retorna valor
+
 
 mc_error:
     ldr     x1, =msg_err_dim_mul

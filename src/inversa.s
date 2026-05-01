@@ -14,12 +14,13 @@ msg_no_invertible_len = . - msg_no_invertible
 
 .text
 .global matriz_inversa
-
+.global calcular_inversa
 .extern print
 .extern print_entero
 .extern imprimir_matriz
 .extern reservar_matriz
 .extern liberar_matriz
+
 
 
 // matriz inversa Gauss-Jordan
@@ -285,3 +286,227 @@ inv_ret:
     ldp     x19, x20, [sp], #16
     ldp     x29, x30, [sp], #16
     ret                           // no retorna valor
+
+
+// version sin impresion 
+// x0 = A, x1 = n
+// retorna x0 = puntero a inversa o 0 si no invertible
+calcular_inversa:
+    stp     x29, x30, [sp, #-16]!
+    stp     x19, x20, [sp, #-16]!
+    stp     x21, x22, [sp, #-16]!
+    stp     x23, x24, [sp, #-16]!
+    stp     x25, x26, [sp, #-16]!
+    stp     x27, x28, [sp, #-16]!
+
+    mov     x19, x0               // A
+    mov     x20, x1               // n
+    mov     x21, x1, lsl #1       // 2n
+
+    // reserva M = [A | I]
+    mov     x0, x20
+    mov     x1, x21
+    bl      reservar_matriz
+    mov     x22, x0               // M
+
+    // llena M
+    mov     x23, #0
+ci_init_fila:
+    cmp     x23, x20
+    bge     ci_init_fin
+
+    mov     x24, #0
+ci_init_col:
+    cmp     x24, x21
+    bge     ci_init_sig
+
+    cmp     x24, x20
+    bge     ci_init_der
+
+    mul     x6, x23, x20
+    add     x6, x6, x24
+    lsl     x6, x6, #3
+    ldr     x9, [x19, x6]
+    mul     x7, x23, x21
+    add     x7, x7, x24
+    lsl     x7, x7, #3
+    str     x9, [x22, x7]
+    b       ci_init_next
+
+ci_init_der:
+    sub     x10, x24, x20
+    cmp     x23, x10
+    beq     ci_init_uno
+    mov     x9, #0
+    b       ci_init_guarda
+ci_init_uno:
+    mov     x9, #1
+ci_init_guarda:
+    mul     x7, x23, x21
+    add     x7, x7, x24
+    lsl     x7, x7, #3
+    str     x9, [x22, x7]
+
+ci_init_next:
+    add     x24, x24, #1
+    b       ci_init_col
+
+ci_init_sig:
+    add     x23, x23, #1
+    b       ci_init_fila
+
+ci_init_fin:
+    // Gauss-Jordan sobre M
+    mov     x23, #0
+ci_k:
+    cmp     x23, x20
+    bge     ci_norm
+
+    mul     x6, x23, x21
+    add     x6, x6, x23
+    lsl     x6, x6, #3
+    ldr     x24, [x22, x6]
+
+    cmp     x24, #0
+    beq     ci_no_inv
+
+    mov     x25, #0
+ci_i:
+    cmp     x25, x20
+    bge     ci_sigk
+    cmp     x25, x23
+    beq     ci_sigi
+
+    mul     x6, x25, x21
+    add     x6, x6, x23
+    lsl     x6, x6, #3
+    ldr     x26, [x22, x6]
+
+    cmp     x26, #0
+    beq     ci_sigi
+
+    mov     x27, #0
+ci_j:
+    cmp     x27, x21
+    bge     ci_sigi
+
+    mul     x6, x25, x21
+    add     x6, x6, x27
+    lsl     x6, x6, #3
+    ldr     x9, [x22, x6]
+
+    mul     x7, x23, x21
+    add     x7, x7, x27
+    lsl     x7, x7, #3
+    ldr     x10, [x22, x7]
+
+    mul     x9, x9, x24
+    mul     x10, x10, x26
+    sub     x9, x9, x10
+    str     x9, [x22, x6]
+
+    add     x27, x27, #1
+    b       ci_j
+
+ci_sigi:
+    add     x25, x25, #1
+    b       ci_i
+
+ci_sigk:
+    add     x23, x23, #1
+    b       ci_k
+
+ci_norm:
+    // normaliza
+    mov     x23, #0
+ci_n_fila:
+    cmp     x23, x20
+    bge     ci_extrae
+
+    mul     x6, x23, x21
+    add     x6, x6, x23
+    lsl     x6, x6, #3
+    ldr     x24, [x22, x6]
+
+    cmp     x24, #0
+    beq     ci_n_sig
+
+    mov     x25, #0
+ci_n_col:
+    cmp     x25, x21
+    bge     ci_n_sig
+
+    mul     x6, x23, x21
+    add     x6, x6, x25
+    lsl     x6, x6, #3
+    ldr     x9, [x22, x6]
+    sdiv    x9, x9, x24
+    str     x9, [x22, x6]
+
+    add     x25, x25, #1
+    b       ci_n_col
+
+ci_n_sig:
+    add     x23, x23, #1
+    b       ci_n_fila
+
+ci_extrae:
+    // reserva R y copia mitad derecha
+    mov     x0, x20
+    mov     x1, x20
+    bl      reservar_matriz
+    mov     x28, x0
+
+    mov     x23, #0
+ci_e_fila:
+    cmp     x23, x20
+    bge     ci_e_fin
+
+    mov     x24, #0
+ci_e_col:
+    cmp     x24, x20
+    bge     ci_e_sig
+
+    add     x10, x24, x20
+    mul     x7, x23, x21
+    add     x7, x7, x10
+    lsl     x7, x7, #3
+    ldr     x9, [x22, x7]
+
+    mul     x6, x23, x20
+    add     x6, x6, x24
+    lsl     x6, x6, #3
+    str     x9, [x28, x6]
+
+    add     x24, x24, #1
+    b       ci_e_col
+
+ci_e_sig:
+    add     x23, x23, #1
+    b       ci_e_fila
+
+ci_e_fin:
+    // libera M, retorna R
+    mov     x0, x22
+    mov     x1, x20
+    mov     x2, x21
+    bl      liberar_matriz
+
+    mov     x0, x28               // x0 = puntero a inversa
+    b       ci_ret
+
+ci_no_inv:
+    mov     x0, x22
+    mov     x1, x20
+    mov     x2, x21
+    bl      liberar_matriz
+    mov     x0, #0                // retorna 0 = no invertible
+
+ci_ret:
+    ldp     x27, x28, [sp], #16
+    ldp     x25, x26, [sp], #16
+    ldp     x23, x24, [sp], #16
+    ldp     x21, x22, [sp], #16
+    ldp     x19, x20, [sp], #16
+    ldp     x29, x30, [sp], #16
+    ret                           // x0 = puntero o 0
